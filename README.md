@@ -47,12 +47,9 @@ The system was tested with:
 - Approved FAQ and support information
 - Conversation memory
 
-## Screenshots
+### Workflow canvas
 
-See the `screenshots/` folder for:
-
-- Workflow canvas
-- Successful execution
+![Workflow canvas](successful-executions.jpeg)
 
 ## Demo
 

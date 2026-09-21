@@ -1,0 +1,507 @@
+{
+  "name": "Knowledge Assisted FAQ",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -2960,
+        16
+      ],
+      "id": "29da334b-6312-45d8-b542-2a9a61013091",
+      "name": "Telegram Trigger",
+      "webhookId": "4dd7a44d-4317-4448-bf88-f01b03cc4c43",
+      "credentials": {
+        "telegramApi": {
+          "id": "QWDVZlHFbiogqSkn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "You are a customer-support agent.\n\nAlways use the Knowledge Base tool before answering company questions.\n\nAnswer only from the approved knowledge base. Never guess.\n\nSet needs_human to true when:\n- the knowledge base has no answer;\n- the customer requests an exception;\n- the issue involves legal action or payment;\n- the customer requests a human;\n- you are uncertain.\n\nReturn a concise answer, confidence score, escalation decision and reason.\n\n{\n  \"answer\": \"string\",\n  \"confidence\": 0.9,\n  \"needs_human\": false,\n  \"reason\": \"string\"\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -2672,
+        16
+      ],
+      "id": "f4ecf606-e2c4-405c-9e57-6ec1267098ba",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        -2736,
+        256
+      ],
+      "id": "e8d8bdc4-3a30-4c13-aa9b-fc96b845ed1c",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "MyPA85RFXIFxfUml",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.text }}",
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -2608,
+        256
+      ],
+      "id": "62d814fb-d061-4db4-a97b-d2e9998a2688",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Retrieves the approved customer-support FAQs. Use this before answering questions about company policies, delivery, refunds or opening hours.",
+        "authentication": "airtableOAuth2Api",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appdkzC7TQb0MQJ0b",
+          "mode": "list",
+          "cachedResultName": "Agents and Multi Agents",
+          "cachedResultUrl": "https://airtable.com/appdkzC7TQb0MQJ0b"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblbWUI9GMAZKFups",
+          "mode": "list",
+          "cachedResultName": "Knowledge Base",
+          "cachedResultUrl": "https://airtable.com/appdkzC7TQb0MQJ0b/tblbWUI9GMAZKFups"
+        },
+        "options": {
+          "fields": [
+            "Question",
+            "Answers",
+            "Category"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.2,
+      "position": [
+        -2480,
+        256
+      ],
+      "id": "ed9e5029-40d9-4626-9305-926aa43eb104",
+      "name": "Search records in Airtable",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "cqc2uMD2MrxAOKND",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = JSON.parse($json.output);\n\nreturn {\n  json: {\n    answer: result.answer,\n    confidence: result.confidence,\n    needs_human: result.needs_human,\n    reason: result.reason,\n    status: result.needs_human ? \"Needs Human\" : \"Answered\"\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2272,
+        16
+      ],
+      "id": "5e27300a-57e3-47a8-9d3f-8d826e18c608",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "authentication": "airtableOAuth2Api",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appdkzC7TQb0MQJ0b",
+          "mode": "list",
+          "cachedResultName": "Agents and Multi Agents",
+          "cachedResultUrl": "https://airtable.com/appdkzC7TQb0MQJ0b"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblY54pDGB93OQ6BO",
+          "mode": "list",
+          "cachedResultName": "Conversations",
+          "cachedResultUrl": "https://airtable.com/appdkzC7TQb0MQJ0b/tblY54pDGB93OQ6BO"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Confidence Score": "={{ $json.confidence }}",
+            "Customer Name": "={{ $('Telegram Trigger').item.json.message.chat.username }}",
+            "Question": "={{ $('Telegram Trigger').item.json.message.text }}",
+            "AI Answer": "={{ $json.answer }}",
+            "Reason": "={{ $json.reason }}",
+            "Status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Question",
+              "displayName": "Question",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "AI Answer",
+              "displayName": "AI Answer",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Confidence Score",
+              "displayName": "Confidence Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Answered",
+                  "value": "Answered"
+                },
+                {
+                  "name": "Needs Human",
+                  "value": "Needs Human"
+                },
+                {
+                  "name": "Resolved",
+                  "value": "Resolved"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -2048,
+        16
+      ],
+      "id": "cebb297f-1007-41f4-adc1-4f61b6a5a3c6",
+      "name": "Create a record",
+      "credentials": {
+        "airtableOAuth2Api": {
+          "id": "cqc2uMD2MrxAOKND",
+          "name": "Airtable account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1e91f587-ab8b-4065-8bae-c2c41ff972bb",
+              "leftValue": "={{ $('Code in JavaScript').item.json.needs_human }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1824,
+        16
+      ],
+      "id": "30f08b90-4ce3-4719-95e6-5766a5c47584",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $('Code in JavaScript').item.json.answer }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        -80
+      ],
+      "id": "afe20da7-f76d-48d8-9102-26f8632a492e",
+      "name": "AI Answered",
+      "webhookId": "3fcbf24d-90bf-4cbc-bdc1-b57e03cb11bc",
+      "credentials": {
+        "telegramApi": {
+          "id": "QWDVZlHFbiogqSkn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.fields['AI Answer'] }} \n\nI will escalate this to a human who will reach out to you within 24hrs.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        112
+      ],
+      "id": "06b04bd4-7834-4ad4-89c1-8fda84056a8d",
+      "name": "Need Human",
+      "webhookId": "f90a2c7c-fcbd-4d56-9dca-d09c521700ef",
+      "credentials": {
+        "telegramApi": {
+          "id": "QWDVZlHFbiogqSkn",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.ceo_email }}",
+        "subject": "A Customer Need your Response",
+        "emailType": "text",
+        "message": "=Hi, CEO.\n{{ $json.result.chat.username }} on Telegram has a question that you need to respond to.\n\nQuestion: {{ $('Telegram Trigger').item.json.message.text }}\nAI Answer:{{ $('Code in JavaScript').item.json.answer }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1376,
+        112
+      ],
+      "id": "99d0866a-fe27-4d76-a010-0c8e4bb180f1",
+      "name": "Send a message",
+      "webhookId": "cba3577a-1b34-41d1-9a65-4550a5195f2f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Wwj0B7w3FceJXyJn",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records in Airtable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create a record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Answered",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Need Human",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Need Human": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e49e4896-3fef-4216-850c-369165585c53",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "44c5854dd52e61af64d9fe7a179a5fd72dc0a9cc7cb79ac0d962490229676bd2"
+  },
+  "nodeGroups": [],
+  "id": "daGdqf4nn0HGhVXA",
+  "tags": []
+}

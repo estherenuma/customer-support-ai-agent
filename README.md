@@ -49,7 +49,7 @@ The system was tested with:
 
 ### Workflow canvas
 
-![Workflow canvas](successful-executions.jpeg)
+![Workflow canvas](successful-execution.jpeg)
 
 ## Demo
 
